@@ -1,14 +1,14 @@
-use std::rc::Rc;
-use std::cell::RefCell;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::collections::HashMap;
 
 #[derive (Debug)]
 struct Traverser<'a> {
     string_vec: Vec<String>,
     vec_ptr: usize,
-    store: Rc<RefCell<VSON>>,
-    store_ptr: Rc<RefCell<VSON>>,
-    prev_loc_stack: Vec<Rc<RefCell<VSON>>>,
+    store: Arc<Mutex<VSON>>,
+    store_ptr: Arc<Mutex<VSON>>,
+    prev_loc_stack: Vec<Arc<Mutex<VSON>>>,
     dict: &'a Dictionary,
 }
 
@@ -22,13 +22,13 @@ impl<'a> Traverser<'a> {
         let first_word = string_vec[0].clone();
         let first_type: WordType = dict.get_type(&first_word);
 
-        let def: Rc<_>;
+        let def: Arc<_>;
         match first_type {
             WordType::Noun | WordType::Adj => {
-                def = Rc::new(RefCell::new(VSON::Noun(first_word)))
+                def = Arc::new(Mutex::new(VSON::Noun(first_word)))
             }
             _ => {
-                def = Rc::new(RefCell::new(VSON::VSO(first_word, None, None)))
+                def = Arc::new(Mutex::new(VSON::VSO(first_word, None, None)))
             }
         }
         
@@ -49,7 +49,7 @@ impl<'a> Traverser<'a> {
             VSON::VSO(value, Some(subj_vson), Some(obj_vson)) => {
                 println!("{tabs}{value}", value=value, tabs=tabs);
 
-                let borrow_subj = &mut *subj_vson.borrow_mut();
+                let borrow_subj = &mut *subj_vson.lock().unwrap();
                 match borrow_subj {
                     VSON::VSO(_,_,_) => {
                         Traverser::pprint(borrow_subj, tab_count + 1);
@@ -59,7 +59,7 @@ impl<'a> Traverser<'a> {
                     }
                 }
 
-                let borrow_obj = &mut *obj_vson.borrow_mut();
+                let borrow_obj = &mut *obj_vson.lock().unwrap();
                 match borrow_obj {
                     VSON::VSO(_,_,_) => {
                         Traverser::pprint(borrow_obj, tab_count);
@@ -73,7 +73,7 @@ impl<'a> Traverser<'a> {
             VSON::VSO(value, Some(subj_vson), None) => {
                 println!("{tabs}{value}", value=value, tabs=tabs);
 
-                let borrow_subj = &mut *subj_vson.borrow_mut();
+                let borrow_subj = &mut *subj_vson.lock().unwrap();
                 match borrow_subj {
                     VSON::VSO(_,_,_) => {
                         Traverser::pprint(borrow_subj, tab_count + 1);
@@ -107,11 +107,11 @@ impl<'a> Traverser<'a> {
 
 impl<'a> Traverser<'a> {
     fn pprint_store(&mut self) {
-        Traverser::pprint(&mut *self.store.borrow_mut(), 0);
+        Traverser::pprint(&mut *self.store.lock().unwrap(), 0);
     }
 
     fn pprint_store_ptr(&mut self) {
-        Traverser::pprint(&mut *self.store_ptr.borrow_mut(), 0);
+        Traverser::pprint(&mut *self.store_ptr.lock().unwrap(), 0);
     }
 
     fn get_next_word(&mut self) -> String {
@@ -133,25 +133,32 @@ impl<'a> Traverser<'a> {
     }
 
     fn step(&mut self, next_word: String, next_type: WordType) {
+        self.pprint_store_ptr();
+        /*
         match next_type {
             WordType::END_OF_FILE | WordType::PAST_END => {
                 return
             },
             _ => {}
         }
-        let mut borrowed_content = self.store_ptr.borrow_mut();
+        */
+        let mut borrowed_content = self.store_ptr.lock().unwrap();
         match &*borrowed_content {
             VSON::VSO(val, None, maybe_obj) => {
                 assert!(maybe_obj.is_none()); // maybe_obj should be None!
                 match next_type {
+                    WordType::END_OF_FILE | WordType::PAST_END => {
+                        return
+                    },
+
                     WordType::Noun | WordType::Adj => {
-                        *borrowed_content = VSON::VSO(val.clone(), Some(Rc::new(RefCell::new(VSON::Noun(next_word)))), maybe_obj.clone());
+                        *borrowed_content = VSON::VSO(val.clone(), Some(Arc::new(Mutex::new(VSON::Noun(next_word)))), maybe_obj.clone());
                     }
 
                     _ => { // should only go there if it's NOT a noun
-                        *borrowed_content = VSON::VSO(val.clone(), Some(Rc::new(RefCell::new(VSON::VSO(next_word, None, None)))), maybe_obj.clone());
+                        *borrowed_content = VSON::VSO(val.clone(), Some(Arc::new(Mutex::new(VSON::VSO(next_word, None, None)))), maybe_obj.clone());
                         drop(borrowed_content);
-                        if let VSON::VSO(_, Some(thing), _) = &*self.store_ptr.clone().borrow_mut() {
+                        if let VSON::VSO(_, Some(thing), _) = &*self.store_ptr.clone().lock().unwrap() {
                             self.prev_loc_stack.push(self.store_ptr.clone());
                             self.store_ptr = thing.clone(); // clone should only increment the ref counter
                         }
@@ -166,14 +173,18 @@ impl<'a> Traverser<'a> {
             } // No Subject
             VSON::VSO(val, Some(thing), None) => {
                 match next_type {
+                    WordType::END_OF_FILE | WordType::PAST_END => {
+                        return
+                    },
+
                     WordType::Noun | WordType::Adj => {
-                        *borrowed_content = VSON::VSO(val.clone(), Some(thing.clone()), Some(Rc::new(RefCell::new(VSON::Noun(next_word)))));
+                        *borrowed_content = VSON::VSO(val.clone(), Some(thing.clone()), Some(Arc::new(Mutex::new(VSON::Noun(next_word)))));
                     }
 
                     _ => {
-                        *borrowed_content = VSON::VSO(val.clone(), Some(thing.clone()), Some(Rc::new(RefCell::new(VSON::VSO(next_word, None, None)))));
+                        *borrowed_content = VSON::VSO(val.clone(), Some(thing.clone()), Some(Arc::new(Mutex::new(VSON::VSO(next_word, None, None)))));
                         drop(borrowed_content);
-                        if let VSON::VSO(_, _, Some(thing)) = &*self.store_ptr.clone().borrow_mut() {
+                        if let VSON::VSO(_, _, Some(thing)) = &*self.store_ptr.clone().lock().unwrap() {
                             self.prev_loc_stack.push(self.store_ptr.clone());
                             self.store_ptr = thing.clone(); // clone should only increment the ref counter
                         }
@@ -187,11 +198,13 @@ impl<'a> Traverser<'a> {
             } // No Object
             VSON::VSO(_, Some(_), Some(_)) => {
                 drop(borrowed_content);
-                if let Some(thing) = self.prev_loc_stack.pop() {
-                    self.store_ptr = thing;
+                if self.prev_loc_stack.len() > 0 {
+                    if let Some(thing) = self.prev_loc_stack.pop() {
+                        self.store_ptr = thing;
+                    }
+                    self.step(next_word, next_type);
+                    println!("-----COMPLETED VSO CLUSTER-----");
                 }
-                self.step(next_word, next_type);
-                println!("-----COMPLETED VSO CLUSTER-----");
             } // Completed VSO
 
             VSON::Noun(_) => {
@@ -203,7 +216,7 @@ impl<'a> Traverser<'a> {
 
 #[derive (Debug)]
 enum VSON {
-    VSO(String, Option<Rc<RefCell<VSON>>>, Option<Rc<RefCell<VSON>>>),
+    VSO(String, Option<Arc<Mutex<VSON>>>, Option<Arc<Mutex<VSON>>>),
     Noun(String),
 }
 
@@ -282,9 +295,9 @@ fn main() {
         //println!("{:?}", trav1.prev_loc_stack);
         trav1.call_step();
         //println!("{:?}", trav1.store);
-        trav1.pprint_store_ptr();
+        //trav1.pprint_store_ptr();
     }
-    //Traverser::pprint(&mut *trav1.store.borrow_mut(), 0);
+    //Traverser::pprint(&mut *trav1.store.lock().unwrap(), 0);
     println!("########################################");
     println!("########################################");
     println!("########################################");
