@@ -34,8 +34,8 @@ impl WordDict {
             ("pass.".to_string(), WordType::Noun),
             ("being".to_string(), WordType::Noun),
 
-            ("END_OF_FILE".to_string(), WordType::END_OF_FILE),
-            ("PAST_END".to_string(), WordType::PAST_END),
+            ("END_OF_FILE".to_string(), WordType::EndOfFile),
+            ("PAST_END".to_string(), WordType::PastEnd),
         ].iter()
          .cloned()
          .collect();
@@ -43,12 +43,13 @@ impl WordDict {
         let standard_behavior_dict: HashMap<WordType, TravBehavior> = [
             (WordType::Action, TravBehavior::Verbal),
             (WordType::Conj, TravBehavior::Verbal),
+            (WordType::Adv, TravBehavior::Verbal),
 
             (WordType::Adj, TravBehavior::Nominal),
             (WordType::Noun, TravBehavior::Nominal),
 
-            (WordType::END_OF_FILE, TravBehavior::END_OF_FILE),
-            (WordType::PAST_END, TravBehavior::PAST_END),
+            (WordType::EndOfFile, TravBehavior::EndOfFile),
+            (WordType::PastEnd, TravBehavior::PastEnd),
         ].iter()
          .cloned()
          .collect();
@@ -86,6 +87,6 @@ pub enum WordType {
     Adv,
     Conj,
     Noun,
-    END_OF_FILE,
-    PAST_END,
+    EndOfFile,
+    PastEnd,
 }

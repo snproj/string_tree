@@ -10,7 +10,7 @@ fn main() {
     //let mut trav1 = Traverser::new("and and eat and Mike John and apple pear like Mike and Mike and Mike and Mike John Mike".to_string(), &dict1);
     let mut trav1 = traverser::Traverser::new("adv. and free in and dignity right equal birth pass. adj. all adj. human being".to_string(), dict1);
     //println!("{:#?}", trav1.store);
-    trav1.pprint_store_ptr();
+    //trav1.pprint_store_ptr();
     for _i in 0..20 {
         println!("########################################");
         //println!("{:?}", trav1.prev_loc_stack);

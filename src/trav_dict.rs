@@ -2,8 +2,8 @@
 pub enum TravBehavior {
     Verbal,
     Nominal,
-    END_OF_FILE,
-    PAST_END,
+    EndOfFile,
+    PastEnd,
 }
 
 pub trait TravDict{
