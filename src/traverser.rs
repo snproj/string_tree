@@ -1,4 +1,6 @@
 use crate::trav_dict::*;
+use crate::vson::VSON;
+use crate::trav_actionator::*;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -7,7 +9,7 @@ pub struct Traverser<T: TravDict> {
     string_vec: Vec<String>,
     vec_ptr: usize,
     store: Arc<Mutex<VSON>>,
-    store_ptr: Arc<Mutex<VSON>>,
+    pub store_ptr: Arc<Mutex<VSON>>,
     prev_loc_stack: Vec<Arc<Mutex<VSON>>>,
     dict: Arc<Mutex<T>>,
 }
@@ -232,10 +234,9 @@ impl<T: TravDict> Traverser<T> {
         self.pprint_store_ptr();
         println!("STEP END");
     }
-}
 
-#[derive (Debug)]
-pub enum VSON {
-    VSO(String, Option<Arc<Mutex<VSON>>>, Option<Arc<Mutex<VSON>>>),
-    Noun(String),
+    pub fn invoke_actionator(&self, target_vson: Arc<Mutex<VSON>>) -> Option<Arc<Mutex<<T::Action as TravActionator>::TravActionResult>>> {
+        let dict_unwrap = &*self.dict.lock().unwrap();
+        dict_unwrap.invoke_actionator(target_vson)
+    }
 }
