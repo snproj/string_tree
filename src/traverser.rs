@@ -5,17 +5,18 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 #[derive (Debug)]
-pub struct Traverser<T: TravDict> {
+pub struct Traverser<T: TravDict, U: TravActionator<T>> {
     string_vec: Vec<String>,
     vec_ptr: usize,
     store: Arc<Mutex<VSON>>,
-    pub store_ptr: Arc<Mutex<VSON>>,
+    pub   store_ptr: Arc<Mutex<VSON>>,
     prev_loc_stack: Vec<Arc<Mutex<VSON>>>,
     dict: Arc<Mutex<T>>,
+    actionator: Arc<Mutex<U>>
 }
 
-impl<T: TravDict> Traverser<T> {
-    pub fn new(orig: String, dict: Arc<Mutex<T>>) -> Traverser<T> {
+impl<T: TravDict, U: TravActionator<T>> Traverser<T, U> {
+    pub fn new(orig: String, dict: Arc<Mutex<T>>, actionator: Arc<Mutex<U>>) -> Traverser<T, U> {
         let string_vec: Vec<String> = orig.split(" ")
                                           .filter(|&word| word != "")
                                           .map(|x| x.to_string())
@@ -47,11 +48,12 @@ impl<T: TravDict> Traverser<T> {
             store_ptr: def.clone(),
             prev_loc_stack: Vec::new(),
             dict: dict.clone(),
+            actionator: actionator.clone(),
         }
     }
 
     pub fn pprint(thing: &VSON, tab_count: usize) {
-        println!("PPRINT START");
+        //println!("PPRINT START");
         let tabs = "\t".repeat(tab_count);
         let tabs_plus_one = tabs.clone() + "\t";
         match thing {
@@ -111,19 +113,19 @@ impl<T: TravDict> Traverser<T> {
                 panic!();
             }
         }
-        println!("PPRINT END");
+        //println!("PPRINT END");
     }
 }
 
-impl<T: TravDict> Traverser<T> {
+impl<T: TravDict, U: TravActionator<T>> Traverser<T, U> {
     pub fn pprint_store(&self) {
         Self::pprint(&*self.store.lock().unwrap(), 0);
     }
 
     pub fn pprint_store_ptr(&self) {
-        println!("PPRINT_STORE_PTR START");
+        //println!("PPRINT_STORE_PTR START");
         Self::pprint(&*self.store_ptr.lock().unwrap(), 0);
-        println!("PPRINT_STORE_PTR END");
+        //println!("PPRINT_STORE_PTR END");
     }
 
     pub fn get_next_word(&mut self) -> String {
@@ -138,16 +140,16 @@ impl<T: TravDict> Traverser<T> {
     }
 
     pub fn call_step(&mut self) {
-        println!("CALL_STEP START");
+        //println!("CALL_STEP START");
         let next_word = self.get_next_word();
         let next_trav_behavior = self.dict.lock().unwrap().get_trav_behavior(&next_word);
         //println!("{}", next_word);
         self.step(next_word, next_trav_behavior);
-        println!("CALL_STEP END");
+        //println!("CALL_STEP END");
     }
 
     pub fn step(&mut self, next_word: String, next_trav_behavior: TravBehavior) {
-        println!("STEP START");
+        //println!("STEP START");
         //self.pprint_store_ptr();
         /*
         match next_type {
@@ -231,12 +233,13 @@ impl<T: TravDict> Traverser<T> {
                 } // Noun
             }
         }
-        self.pprint_store_ptr();
-        println!("STEP END");
+        //self.pprint_store_ptr();
+        //println!("STEP END");
     }
 
-    pub fn invoke_actionator(&self, target_vson: Arc<Mutex<VSON>>) -> Option<Arc<Mutex<<T::Action as TravActionator>::TravActionResult>>> {
-        let dict_unwrap = &*self.dict.lock().unwrap();
-        dict_unwrap.invoke_actionator(target_vson)
+    pub fn invoke_actionator(&self, target_vson: Arc<Mutex<VSON>>) -> Option<Arc<Mutex<U::TravActionResult>>> {
+        let actionator_unwrap = &*self.actionator.lock().unwrap();
+
+        actionator_unwrap.commence_action(target_vson, self.dict.clone())
     }
 }

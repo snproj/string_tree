@@ -1,26 +1,21 @@
-use std::sync::Arc;
-use std::sync::Mutex;
-use crate::vson::*;
 use crate::trav_dict::*;
-use crate::trav_actionator::*;
-use crate::word_actionator::*;
 use std::collections::HashMap;
 
 #[derive (Debug)]
 pub struct WordDict {
     type_dict: HashMap<String, WordType>,
     behavior_dict: HashMap<WordType, TravBehavior>,
-    actionator: WordActionator,
 }
 
 impl WordDict {
-    pub fn new(actionator: WordActionator) -> WordDict{
+    pub fn new() -> WordDict{
         let standard_type_dict: HashMap<String, WordType> = [
             ("eat".to_string(), WordType::Action),
             ("like".to_string(), WordType::Action),
             ("birth".to_string(), WordType::Action),
 
             ("and".to_string(), WordType::Conj),
+            ("simul".to_string(), WordType::Conj),
             ("adv.".to_string(), WordType::Conj),
             ("in".to_string(), WordType::Conj),
             ("adj.".to_string(), WordType::Conj),
@@ -63,7 +58,6 @@ impl WordDict {
         WordDict {
             type_dict: standard_type_dict,
             behavior_dict: standard_behavior_dict,
-            actionator,
         }
     }
 }
@@ -71,7 +65,6 @@ impl WordDict {
 
 impl TravDict for WordDict {
     type TravType = WordType;
-    type Action = WordActionator;
 
     fn get_type(&self, word: &String) -> WordType {
         match self.type_dict.get(word) {
@@ -106,10 +99,6 @@ impl TravDict for WordDict {
             None => panic!("SUNRISE_ERROR: WordBehavior not assigned to: {}", &word)
         }
         */
-    }
-
-    fn invoke_actionator(&self, store: Arc<Mutex<VSON>>) -> Option<Arc<Mutex<WordActionResult>>> {
-        self.actionator.commence_action(store)
     }
 }
 
